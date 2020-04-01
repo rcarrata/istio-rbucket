@@ -2,25 +2,48 @@
 
 [Istio Tutorial 1.4.x](https://redhat-developer-demos.github.io/istio-tutorial/workshop/istio-tutorial/1.4.x/)
 
-## Prereqs environment
+## 0. Installation (Maistra 1.0.8 / Service Mesh 1.0 / Istio 1.1.17)
+
+```
+oc apply -f installation/servicemesh-namespace.yml
+```
+
+```
+oc apply -f installation/elasticsearch-operator.yml
+oc apply -f installation/jaegar-operator.yml
+oc apply -f installation/kiali-operator.yml
+oc apply -f installation/servicemesh-operator.yml
+```
+
+```
+oc apply -f installation/servicemesh-controlplane.yml
+oc apply -f installation/servicemesh-memberrole.yml
+```
+
+## 1. Prereqs environment
 
 ```
 oc new-project tutorial
 oc adm policy add-scc-to-user privileged -z default -n tutorial
 ```
 
+* Workarounds for ServiceMesh to run within Istioctl v1.1.9
+
 ```
-git clone https://github.com/redhat-developer-demos/istio-tutorial
-cd istio-tutorial
+curl -O https://github.com/istio/istio/releases/download/1.1.17/istio-1.1.17-linux.tar.gz | tar xz
+cd istio-1.1.17 && export ISTIO_HOME=`pwd` && export PATH=$ISTIO_HOME/bin:$PATH && cd - && istioctl version
 ```
 
-## Workarounds for ServiceMesh to run within Istioctl v1.1.9
+* Git clone tutorial
+
 ```
-cd ~/Code/RedHat/8-ISTIO/istio-1.1.9 && export ISTIO_HOME=`pwd` && export PATH=$ISTIO_HOME/bin:$PATH
-&& cd - && istioctl version
+git clone https://github.com/redhat-developer-demos/istio-rbucket
+cd istio-rbucket
 ```
 
-## Deploy micros
+
+
+## 1. Deploy micros
 
 * Customerv1
 
@@ -59,27 +82,27 @@ curl $istiogw/customer
 oc apply -f <(istioctl kube-inject -f recommendation/kubernetes/Deployment-v2.yml) -n tutorial
 ```
 
-## Traffic Control
+## 2. Traffic Control
 
-### Simple Traffic
+### 2.1 Simple Traffic
 
 ```
 istiogw=$(oc get route -n istio-system istio-ingressgateway | awk '{print $2} ' | grep -v HOST)
 ```
 
-#### All users to recommendation:v2
+#### 2.1.1 All users to recommendation:v2
 ```
 kubectl create -f istiofiles/destination-rule-recommendation-v1-v2.yml -n tutorial
 kubectl create -f istiofiles/virtual-service-recommendation-v2.yml -n tutorial
 ```
 
-#### All users to v1 - 100%
+#### 2.1.2 All users to v1 - 100%
 ```
 kubectl create -f istiofiles/destination-rule-recommendation-v1-v2.yml -n tutorial
 kubectl create -f istiofiles/virtual-service-recommendation-v1.yml -n tutorial
 ```
 
-#### Canary deployment: Split traffic between v1 and v2
+#### 2.1.3 Canary deployment: Split traffic between v1 and v2
 
 * [Canary Deployments Istio](https://istio.io/blog/2017/0.1-canary/#enter-istio)
 
@@ -89,15 +112,15 @@ Canary Deployment scenario: push v2 into the cluster but slowly send end-user tr
 kubectl apply -f ./../istiofiles/virtual-service-recommendation-v1_and_v2_75_25.yml -n tutorial
 ```
 
-#### Create the virtualservice that will send 90% of requests to v1 and 10% to v2
+#### 2.1.4 Create the virtualservice that will send 90% of requests to v1 and 10% to v2
 
 ```
 kubectl apply -f ./../istiofiles/virtual-service-recommendation-v1_and_v2_50_50.yml -n tutorial
 ```
 
-### Advanced Traffic
+### 2.2 Advanced Traffic
 
-#### Smart routing based on user-agent header (Canary Deployment)
+#### 2.2.1 Smart routing based on user-agent header (Canary Deployment)
 
 * [Route-Based On User Identity](https://istio.io/docs/tasks/traffic-management/request-routing/#route-based-on-user-identity)
 
@@ -106,7 +129,7 @@ kubectl replace -f istiofiles/virtual-service-safari-recommendation-v2.yml -n tu
 curl -A Safari http://$(kubectl get route istio-ingressgateway -n istio-system --output 'jsonpath={.status.ingress[].host}')/customer
 ```
 
-#### Set mobile users to v2
+#### 2.2.2 Set mobile users to v2
 
 ```
 kubectl replace -f ./../istiofiles/virtual-service-mobile-recommendation-v2.yml -n tutorial
@@ -114,7 +137,7 @@ kubectl replace -f ./../istiofiles/virtual-service-mobile-recommendation-v2.yml 
 curl -A "Mozilla/5.0 (iPhone; U; CPU iPhone OS 4(KHTML, like Gecko) Version/5.0.2 Mobile/8J2 Safari/6533.18.5" http://$(kubectl get route istio-ingressgateway -n istio-system --output 'jsonpath={.status.ingress[].host}')/customer
 ```
 
-#### Mirror Traffic - Dark Launch
+#### 2.2.3 Mirror Traffic - Dark Launch
 
 * [Mirroring/Dark Launch](https://istio.io/docs/tasks/traffic-management/mirroring/)
 
@@ -127,7 +150,7 @@ kubectl create -f istiofiles/virtual-service-recommendation-v1-mirror-v2.yml -n 
 kubectl logs `kubectl get pods -n tutorial|grep recommendation-v2|awk '{ print $1 }'` -c recommendation -n tutorial
 ```
 
-#### Load Balancing
+#### 2.2.4 Load Balancing
 
 * [Load Balancing](https://istio.io/docs/concepts/traffic-management/#load-balancing-options)
 
@@ -143,5 +166,24 @@ kubectl replace -f ./../istiofiles/destination-rule-recommendation_lb_policy_app
 
 ./../scripts/run.sh http://$(kubectl get route istio-ingressgateway -n istio-system --output 'jsonpath={.status.ingress[].host}')/customer
 ```
+
+## 3. Service Resiliency
+
+[Retries Istio](https://istio.io/docs/concepts/traffic-management/#retries)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
